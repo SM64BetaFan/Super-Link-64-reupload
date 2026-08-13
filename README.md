@@ -153,9 +153,10 @@ immediately.
 - Burning floors damage Link through liboot while the Mario lava reaction is
   suppressed. CoopDX remains responsible for death-plane and vertical-wind
   transitions. Quicksand imports as sand, but sinking is not reproduced.
-- Textures larger than one N64 TMEM load fall back to vertex shading. Custom
-  blend, depth, decal, and combine behavior is approximate. Navi's glowing
-  billboard body is not drawn.
+- Decoded textures up to 2,048 texels use CoopDX's load-block path. Larger
+  images fall back to vertex shading until the bridge has a tiled uploader.
+  Custom blend, depth, decal, and combine behavior is approximate. Navi's
+  glowing billboard body is not drawn.
 - Link SFX are currently centered rather than spatialized. liboot's mixer is a
   native approximation, not bit-exact RSP audio.
 - Only local player zero runs liboot. Other players remain CoopDX proxies, and

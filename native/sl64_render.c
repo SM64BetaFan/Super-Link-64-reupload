@@ -343,14 +343,17 @@ static const Sl64TextureCache *sl64_batch_texture(
 {
     uint16_t index = batch->textureIndex;
     const Sl64TextureCache *texture;
+    size_t texels;
 
     if (index == UINT16_MAX || index >= gSl64.render.textureCount) {
         return NULL;
     }
     texture = &gSl64.render.textures[index];
-    /* One N64 TMEM load holds at most 4096 bytes. Larger source textures are
-     * rendered shaded until a tiled uploader is implemented. */
-    if (!texture->valid || texture->rgbaSize > 4096u) {
+    texels = (size_t)texture->width * texture->height;
+    /* The cache is expanded RGBA32, so its byte count is not the original
+     * TMEM footprint. CoopDX's load-block command accepts 2048 texels; this
+     * includes OoT's 64x32 CI8 eye and shield textures after conversion. */
+    if (!texture->valid || texels > 2048u) {
         return NULL;
     }
     return texture;

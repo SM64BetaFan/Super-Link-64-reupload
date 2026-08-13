@@ -102,11 +102,12 @@ vertex-cache chunks of at most ten triangles. Opaque and transparent lists are
 submitted under CoopDX's camera matrix, outside Mario's object transform. Host
 render state is saved and loaded around each Link pass.
 
-Small RGBA32 textures are cached by revision. Larger images fall back to vertex
-shading because one uploader call cannot exceed N64 TMEM. The bridge clears
-CoopDX-only geometry modes at each batch and uses stable textured or shaded
-host combiners with liboot's baked vertex colors and material alpha. The
-remaining blend, depth, decal, and billboard behavior is approximate.
+Decoded RGBA32 textures are cached by revision. Images up to 2,048 texels use
+CoopDX's load-block path; larger images fall back to vertex shading until the
+bridge has a tiled uploader. The bridge clears CoopDX-only geometry modes at
+each batch and uses stable textured or shaded host combiners with liboot's
+baked vertex colors and material alpha. The remaining blend, depth, decal, and
+billboard behavior is approximate.
 
 ## Audio
 
