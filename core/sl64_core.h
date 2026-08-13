@@ -31,6 +31,11 @@ typedef struct Sl64Vec3
 
 #define SL64_COORDINATE_MAP_INIT { 1.0f }
 
+/* Header-level guard for the only revision exercised by the pinned liboot
+   build. This recognizes canonical, byte-swapped, and word-swapped dumps; it
+   is not a cryptographic ROM verifier. */
+bool sl64_rom_header_is_pal_1_1(const uint8_t *rom, size_t romSize);
+
 bool sl64_coordinate_map_init(Sl64CoordinateMap *map,
                               float hostUnitsPerOotUnit);
 bool sl64_oot_position_to_host(const Sl64CoordinateMap *map,

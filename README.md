@@ -25,8 +25,8 @@ The current local build has these paths connected:
 - conservative SM64 enemy registration for Z-targeting and Link weapon hits;
 - SM64 enemy damage routed into liboot's Link damage function;
 - liboot stereo audio mixed into the CoopDX signed 16-bit output;
-- adult/child, equipment, item, audio, and runtime-status controls in the mod
-  menu; and
+- an age-aware loadout menu for swords, shields, tunics, boots, items, magic,
+  audio, Link state, and world diagnostics; and
 - a reversible installer for SM64CoopDX v1.5.1 commit
   `8cd6e5977d9f920d51ca71f2c61801d019ed79c6`.
 
@@ -126,7 +126,9 @@ Preserve those edits first, or pass `--force-uninstall` deliberately.
 | C-Up | First-person look |
 
 The default loadout is adult Link, Master Sword, Hylian Shield, Kokiri Tunic,
-Kokiri Boots, and bombs. liboot applies the original age restrictions.
+Kokiri Boots, the Fairy Bow, and a full single magic meter. The menu only
+cycles through choices valid for the selected age and applies each change
+immediately.
 
 ## Known limits
 
@@ -146,7 +148,8 @@ Kokiri Boots, and bombs. liboot applies the original age restrictions.
 - Enemy classification and hit translation cover common SM64 interaction
   types. This is not a general actor or combat conversion layer.
 - One SM64 damage point maps to four liboot damage units, or one quarter-heart.
-  Link health is reported in status; no OoT-style HUD is drawn.
+  Link health and magic are reported through the Link state menu; no OoT-style
+  HUD is drawn.
 - Burning floors damage Link through liboot while the Mario lava reaction is
   suppressed. CoopDX remains responsible for death-plane and vertical-wind
   transitions. Quicksand imports as sand, but sinking is not reproduced.

@@ -169,6 +169,18 @@ static int sl64_lua_set_item(lua_State *lua)
     return 1;
 }
 
+static int sl64_lua_set_magic(lua_State *lua)
+{
+    lua_Integer level = luaL_checkinteger(lua, 1);
+    lua_Integer amount = luaL_checkinteger(lua, 2);
+    bool valid = level >= 0 && level <= 2 && amount >= 0 &&
+                 amount <= INT16_MAX;
+
+    lua_pushboolean(lua, valid && sl64_set_magic((uint8_t)level,
+                                                  (int16_t)amount));
+    return 1;
+}
+
 static int sl64_lua_set_equipment(lua_State *lua)
 {
     lua_Integer sword = luaL_checkinteger(lua, 1);
@@ -229,6 +241,7 @@ void sl64_lua_bind(lua_State *luaState)
     smlua_bind_function(luaState, "sl64_set_enabled", sl64_lua_set_enabled);
     smlua_bind_function(luaState, "sl64_set_age", sl64_lua_set_age);
     smlua_bind_function(luaState, "sl64_set_item", sl64_lua_set_item);
+    smlua_bind_function(luaState, "sl64_set_magic", sl64_lua_set_magic);
     smlua_bind_function(luaState, "sl64_damage_link", sl64_lua_damage_link);
     smlua_bind_function(luaState, "sl64_set_equipment",
                         sl64_lua_set_equipment);

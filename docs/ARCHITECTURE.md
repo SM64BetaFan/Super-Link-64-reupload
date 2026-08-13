@@ -27,7 +27,7 @@ linking keeps the bridge in the same toolchain and runtime as CoopDX.
 
 ## Boot and shutdown
 
-The Lua frontend asks the bridge to validate engine API 1, reads the file named
+The Lua frontend asks the bridge to validate liboot engine API 1, reads the file named
 by `SL64_ROM_PATH`, and calls `oot_engine_create`. liboot copies the ROM bytes;
 the bridge frees its read buffer immediately. Link is created only after the
 current SM64 collision world commits successfully.
@@ -67,15 +67,17 @@ current location but does not reproduce SM64 platform displacement.
 
 ## Update and interactions
 
-`HOOK_BEFORE_MARIO_UPDATE` advances only local player zero. Before advancing,
-the bridge scans live SM64 object-pool entries and synchronizes a conservative
-hostile interaction mask into liboot's target list. After advancing it copies
-frame-owned geometry, Link position, velocity, and facing before any other
-engine mutation.
+`HOOK_BEFORE_MARIO_UPDATE` marks local player zero as the Link proxy. CoopDX
+then updates geometry inputs and host interactions. `HOOK_MARIO_UPDATE`
+advances liboot after that host work, scans live SM64 object-pool entries for a
+conservative hostile interaction mask, and finally restores Link's position,
+velocity, and facing to the proxy.
 
-CoopDX calls the hook at 30 Hz; liboot's PAL step is 60 ms. Accumulator calls
-that do not complete a step retain the last copied Link and render state. Input
-bits remain latched inside liboot until the next completed frame.
+CoopDX calls the hooks at 30 Hz; liboot's PAL step is 60 ms. Accumulator calls
+that do not complete a native step recopy the current borrowed frame with its
+interpolation fraction. The bridge applies a presentation-only velocity offset
+to the proxy and Link geometry, while authoritative liboot state remains on the
+60 ms step. Input bits remain latched until the next completed frame.
 
 The Lua custom action prevents ordinary Mario movement. CoopDX's existing
 pre-physics hook returns a zero step only while that proxy action is active.
@@ -95,15 +97,16 @@ conversion of every SM64 combat rule.
 ## Rendering
 
 liboot emits de-indexed world-space triangles. The bridge copies every borrowed
-array, reflects positions and winding, and emits vertex-cache chunks of at most
-ten triangles. Opaque and transparent lists are submitted under CoopDX's camera
-matrix, outside Mario's object transform. Host render state is saved and loaded
-around each Link pass.
+array, reflects positions and winding, scales them into SM64 units, and emits
+vertex-cache chunks of at most ten triangles. Opaque and transparent lists are
+submitted under CoopDX's camera matrix, outside Mario's object transform. Host
+render state is saved and loaded around each Link pass.
 
 Small RGBA32 textures are cached by revision. Larger images fall back to vertex
-shading because one uploader call cannot exceed N64 TMEM. Common pass, culling,
-alpha-test, combine, primitive-color, and environment-color state is mapped.
-The remaining blend, depth, decal, and billboard behavior is approximate.
+shading because one uploader call cannot exceed N64 TMEM. The bridge clears
+CoopDX-only geometry modes at each batch and uses stable textured or shaded
+host combiners with liboot's baked vertex colors and material alpha. The
+remaining blend, depth, decal, and billboard behavior is approximate.
 
 ## Audio
 

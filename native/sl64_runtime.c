@@ -57,7 +57,11 @@ void sl64_initialize_defaults(void)
     gSl64.status.audioEnabled = 1u;
     gSl64.status.localIndex = -1;
     gSl64.status.globalIndex = -1;
-    gSl64.coordinateMap.hostUnitsPerOotUnit = 1.0f;
+    /* Adult Link is roughly 60 native units tall while Mario's ordinary
+     * collision height is 160 host units. This scale keeps model, movement,
+     * collision, camera, and interaction distances in the same world. */
+    gSl64.coordinateMap.hostUnitsPerOotUnit =
+        SL64_HOST_UNITS_PER_OOT_UNIT;
     atomic_init(&gSl64.audio.readIndex, 0u);
     atomic_init(&gSl64.audio.writeIndex, 0u);
     atomic_init(&gSl64.audio.underruns, 0u);
@@ -245,6 +249,13 @@ bool sl64_boot_from_path(const char *romPath)
     if (!sl64_available() || !sl64_read_rom(romPath, &romBytes, &romSize)) {
         return false;
     }
+    if (!sl64_rom_header_is_pal_1_1(romBytes, romSize)) {
+        free(romBytes);
+        snprintf(gSl64.lastError, sizeof(gSl64.lastError),
+                 "ROM is not Ocarina of Time PAL Europe Rev 1 (PAL 1.1)");
+        gSl64.status.lastResult = OOT_ENGINE_RESULT_INVALID_ARGUMENT;
+        return false;
+    }
     memset(&config, 0, sizeof(config));
     result = oot_engine_config_init(&config);
     if (result != OOT_ENGINE_RESULT_OK) {
@@ -386,15 +397,20 @@ static void sl64_build_input(const struct MarioState *mario,
 }
 
 static void sl64_copy_link_to_mario(struct MarioState *mario,
-                                    const OoTEngineLinkState *link)
+                                    const OoTEngineFrame *frame)
 {
+    const OoTEngineLinkState *link = &frame->link;
     Sl64Vec3 oot;
     Sl64Vec3 host;
+    float alpha = sl64_clampf(frame->interpolationAlpha, 0.0f, 1.0f);
     int16_t yaw;
 
-    oot.x = link->position[0];
-    oot.y = link->position[1];
-    oot.z = link->position[2];
+    /* PAL gameplay remains authoritative at 60 ms. Extrapolating only the
+     * copied host proxy by the accumulator fraction removes 16.7 Hz camera
+     * judder without changing liboot's simulation rate or state. */
+    oot.x = link->position[0] + link->velocity[0] * alpha;
+    oot.y = link->position[1] + link->velocity[1] * alpha;
+    oot.z = link->position[2] + link->velocity[2] * alpha;
     if (sl64_oot_position_to_host(&gSl64.coordinateMap, &oot, &host)) {
         mario->pos[0] = host.x;
         mario->pos[1] = host.y;
@@ -444,7 +460,7 @@ static void sl64_apply_frame_status(const OoTEngineFrame *frame)
 static void sl64_apply_frame_to_proxy(struct MarioState *mario,
                                       const OoTEngineFrame *frame)
 {
-    sl64_copy_link_to_mario(mario, &frame->link);
+    sl64_copy_link_to_mario(mario, frame);
     sl64_apply_frame_status(frame);
 }
 
@@ -482,25 +498,26 @@ bool sl64_tick(int32_t localIndex, int32_t globalIndex)
     if (result != OOT_ENGINE_RESULT_OK) {
         return sl64_fail(result, "advancing Link");
     }
-    if (steps == 0u) {
-        /* CoopDX runs at 30 Hz while liboot's PAL step is 60 ms. A normal
-         * accumulator call can therefore consume input without producing a
-         * new borrowed frame. Keep the last copied proxy/render state until
-         * the next completed simulation step. */
-        gSl64.status.lastResult = OOT_ENGINE_RESULT_OK;
-        return true;
-    }
     if (frame == NULL) {
+        if (steps == 0u) {
+            /* Link creation may precede liboot's first complete frame. */
+            gSl64.status.lastResult = OOT_ENGINE_RESULT_OK;
+            return true;
+        }
         return sl64_fail(OOT_ENGINE_RESULT_NO_FRAME,
                          "liboot returned no Link frame");
     }
 
-    /* Copy every borrowed render pointer before actor contact/audio calls. */
+    /* A zero-step advance still returns the current borrowed frame with a new
+     * interpolation alpha. Re-copy it so host wall pushes cannot survive and
+     * presentation keeps moving between native ticks. */
     if (!sl64_render_capture(frame)) {
         return false;
     }
     sl64_apply_frame_to_proxy(mario, frame);
-    sl64_actor_apply_contacts();
+    if (steps != 0u) {
+        sl64_actor_apply_contacts();
+    }
     sl64_audio_tick();
     return true;
 }
@@ -636,7 +653,8 @@ void sl64_shutdown(void)
     gSl64.status.audioEnabled = 0u;
     gSl64.status.localIndex = -1;
     gSl64.status.globalIndex = -1;
-    gSl64.coordinateMap.hostUnitsPerOotUnit = 1.0f;
+    gSl64.coordinateMap.hostUnitsPerOotUnit =
+        SL64_HOST_UNITS_PER_OOT_UNIT;
     atomic_store_explicit(&gSl64.audio.enabled, 0u, memory_order_release);
     gSl64.lastError[0] = '\0';
 }
@@ -696,6 +714,10 @@ bool sl64_set_enabled(bool enabled)
 
 bool sl64_set_age(uint8_t age)
 {
+    const OoTEngineFrame *frame = NULL;
+    float position[3] = { 0.0f, 0.0f, 0.0f };
+    int16_t yaw = 0;
+    bool restorePose = false;
     OoTResult result;
 
     if (gSl64.engine == NULL || gSl64.status.linkReady == 0u) {
@@ -705,12 +727,25 @@ bool sl64_set_age(uint8_t age)
     if (age == gSl64.status.linkAge) {
         return true;
     }
+    if (oot_engine_get_frame(gSl64.engine, &frame) == OOT_ENGINE_RESULT_OK &&
+        frame != NULL) {
+        memcpy(position, frame->link.position, sizeof(position));
+        yaw = frame->link.faceAngle;
+        restorePose = true;
+    }
     result = oot_engine_link_set_age(gSl64.engine, age);
     if (result != OOT_ENGINE_RESULT_OK) {
         return sl64_fail(result, "setting Link age");
     }
     /* Age changes rebuild the native Link and invalidate host-actor handles. */
     sl64_actor_reset();
+    if (restorePose) {
+        result = oot_engine_link_set_pose(gSl64.engine, position[0],
+                                          position[1], position[2], yaw);
+        if (result != OOT_ENGINE_RESULT_OK) {
+            return sl64_fail(result, "restoring Link pose after age change");
+        }
+    }
     gSl64.status.linkAge = age;
     return true;
 }
@@ -723,6 +758,21 @@ bool sl64_set_item(uint8_t item)
     }
     return sl64_result(oot_engine_link_use_item(gSl64.engine, item),
                        "equipping Link item");
+}
+
+bool sl64_set_magic(uint8_t level, int16_t amount)
+{
+    if (gSl64.engine == NULL || gSl64.status.linkReady == 0u) {
+        return sl64_fail(OOT_ENGINE_RESULT_NOT_INITIALIZED,
+                         "setting Link magic");
+    }
+    if (level > 2u || amount < 0 ||
+        amount > (int16_t)(level * 0x30u)) {
+        return sl64_fail(OOT_ENGINE_RESULT_INVALID_ARGUMENT,
+                         "setting Link magic");
+    }
+    return sl64_result(oot_engine_link_set_magic(gSl64.engine, level, amount),
+                       "setting Link magic");
 }
 
 bool sl64_damage_link(int16_t amount)

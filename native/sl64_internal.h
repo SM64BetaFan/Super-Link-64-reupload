@@ -18,6 +18,7 @@
 #define SL64_AUDIO_RING_FRAMES 16384u
 #define SL64_AUDIO_RING_MASK (SL64_AUDIO_RING_FRAMES - 1u)
 #define SL64_AUDIO_RATE 32000u
+#define SL64_HOST_UNITS_PER_OOT_UNIT 2.5f
 #define SL64_MAX_DYNAMIC_OBJECTS OOT_DYNAMIC_COLLISION_MAX_OBJECTS
 #define SL64_MAX_HOST_ACTORS OOT_ENGINE_MAX_HOST_ACTORS
 
@@ -47,6 +48,7 @@ typedef struct Sl64RenderCache
     uint32_t triangleCount;
     uint32_t batchCapacity;
     uint32_t batchCount;
+    float presentationOffset[3];
     Sl64TextureCache *textures;
     uint32_t textureCount;
 } Sl64RenderCache;

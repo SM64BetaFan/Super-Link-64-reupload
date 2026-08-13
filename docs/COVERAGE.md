@@ -10,15 +10,15 @@ call it.
 | Engine lifecycle and limits | wired | One checked engine; exact API version; shutdown on Lua reload and exit. |
 | PAL 1.1 ROM input | wired | Read from local `SL64_ROM_PATH`; liboot copies the bytes during create. |
 | Fixed-step input | wired | CoopDX's 30 Hz logic passes elapsed time to liboot's 60 ms accumulator. |
-| Age, equipment, selected item | wired | Lua menu calls checked native setters. |
-| Link health, magic, action, animation | status only | Returned in the Lua status table; no OoT HUD or remote replication. |
+| Age, equipment, selected item, magic | wired | Age-aware Lua controls call checked native setters and persist the loadout. |
+| Link health, action, animation | status only | Shown in the Link state menu; no OoT HUD or remote replication. |
 | SM64 damage to Link | partial | Common damaging interactions map one host damage point to four liboot units; their Mario damage and knockback are suppressed. Unsupported interaction types remain host-owned. |
 | Static collision | wired | Deduplicated and converted at level load; intangible surfaces are skipped and any invalid or over-budget input rejects the level. Directional force is left to CoopDX. |
 | Water boxes | partial | Imported at level load; later SM64 water changes are not refreshed. |
 | Dynamic collision | partial | World-space triangles are rebuilt after the object update. Capacity failure disables the level. No platform carry. |
 | Static-object collision | partial | Tangible SOC surfaces present at level import are captured. Later additions, removals, or intangible toggles are not refreshed. |
-| Link geometry | wired | Borrowed frame data is copied, reflected, and chunked into CoopDX display lists. |
-| Material batches | partial | Pass, culling, alpha test, common combine state, prim/env color, and small RGBA32 textures are used. Blend/depth/decal fidelity is incomplete. |
+| Link geometry | wired | Borrowed frame data is copied, reflected, scaled to host units, and chunked into CoopDX display lists. |
+| Material batches | partial | Pass, culling, alpha test, baked color/material alpha, and small RGBA32 textures are used. Blend/depth/decal fidelity is incomplete. |
 | Navi | partial | Wing geometry follows the mesh path; the glowing body sprite is absent. |
 | Arrow, bomb, boomerang, hookshot geometry | wired | Included through liboot's actor render flag. SM64 collision remains contact-based. |
 | Host actors and targeting | partial | A conservative set of live hostile objects is synchronized each tick. Unsupported behavior types remain ordinary SM64 objects. |

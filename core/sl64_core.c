@@ -15,6 +15,41 @@ static bool sl64_map_valid(const Sl64CoordinateMap *map)
            map->hostUnitsPerOotUnit > 0.0f;
 }
 
+bool sl64_rom_header_is_pal_1_1(const uint8_t *rom, size_t romSize)
+{
+    static const uint8_t z64Magic[4] = { 0x80u, 0x37u, 0x12u, 0x40u };
+    static const uint8_t v64Magic[4] = { 0x37u, 0x80u, 0x40u, 0x12u };
+    static const uint8_t n64Magic[4] = { 0x40u, 0x12u, 0x37u, 0x80u };
+    static const char title[] = "THE LEGEND OF ZELDA";
+    static const char gameCode[] = "NZLP";
+    uint8_t order;
+    size_t index;
+
+    if (rom == NULL || romSize < 0x40u) {
+        return false;
+    }
+    if (memcmp(rom, z64Magic, sizeof(z64Magic)) == 0) {
+        order = 0u;
+    } else if (memcmp(rom, v64Magic, sizeof(v64Magic)) == 0) {
+        order = 1u;
+    } else if (memcmp(rom, n64Magic, sizeof(n64Magic)) == 0) {
+        order = 3u;
+    } else {
+        return false;
+    }
+    for (index = 0u; index < sizeof(title) - 1u; ++index) {
+        if (rom[(0x20u + index) ^ order] != (uint8_t)title[index]) {
+            return false;
+        }
+    }
+    for (index = 0u; index < sizeof(gameCode) - 1u; ++index) {
+        if (rom[(0x3bu + index) ^ order] != (uint8_t)gameCode[index]) {
+            return false;
+        }
+    }
+    return rom[0x3fu ^ order] == 1u;
+}
+
 static bool sl64_vec3_valid(const Sl64Vec3 *value)
 {
     return value != NULL && isfinite(value->x) && isfinite(value->y) &&
@@ -235,7 +270,10 @@ bool sl64_input_to_oot(const Sl64HostInput *hostInput,
     } else {
         converted.camLookZ = 1.0f;
     }
-    converted.stickX = sl64_clamp_stick(hostInput->moveRight);
+    /* Host X is reflected into OoT space, so camera-relative lateral input
+     * must be reflected with it. Leaving this positive makes screen-right
+     * input move Link screen-left after the output transform. */
+    converted.stickX = -sl64_clamp_stick(hostInput->moveRight);
     converted.stickY = sl64_clamp_stick(hostInput->moveForward);
 
     buttons = hostInput->buttons;

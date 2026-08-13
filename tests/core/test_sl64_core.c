@@ -39,6 +39,34 @@ static Sl64HostTriangle floor_triangle(uint32_t category, int32_t offsetX)
     return triangle;
 }
 
+static void test_rom_header(void)
+{
+    uint8_t z64[0x40] = { 0 };
+    uint8_t swapped[0x40];
+    static const uint8_t magic[4] = { 0x80u, 0x37u, 0x12u, 0x40u };
+    size_t index;
+
+    memcpy(z64, magic, sizeof(magic));
+    memcpy(z64 + 0x20, "THE LEGEND OF ZELDA", 19u);
+    memcpy(z64 + 0x3b, "NZLP", 4u);
+    z64[0x3f] = 1u;
+    CHECK(sl64_rom_header_is_pal_1_1(z64, sizeof(z64)));
+
+    for (index = 0u; index < sizeof(swapped); ++index) {
+        swapped[index ^ 1u] = z64[index];
+    }
+    CHECK(sl64_rom_header_is_pal_1_1(swapped, sizeof(swapped)));
+    for (index = 0u; index < sizeof(swapped); ++index) {
+        swapped[index ^ 3u] = z64[index];
+    }
+    CHECK(sl64_rom_header_is_pal_1_1(swapped, sizeof(swapped)));
+
+    z64[0x3f] = 0u;
+    CHECK(!sl64_rom_header_is_pal_1_1(z64, sizeof(z64)));
+    CHECK(!sl64_rom_header_is_pal_1_1(NULL, sizeof(z64)));
+    CHECK(!sl64_rom_header_is_pal_1_1(z64, 0x3fu));
+}
+
 static void test_coordinate_conversion(void)
 {
     Sl64CoordinateMap map = SL64_COORDINATE_MAP_INIT;
@@ -104,7 +132,7 @@ static void test_input_mapping(void)
     CHECK(output.structSize == sizeof(output));
     CHECK(nearly_equal(output.camLookX, -0.6f));
     CHECK(nearly_equal(output.camLookZ, 0.8f));
-    CHECK(nearly_equal(output.stickX, 1.0f));
+    CHECK(nearly_equal(output.stickX, -1.0f));
     CHECK(nearly_equal(output.stickY, -1.0f));
     CHECK(output.buttons == expectedButtons);
 
@@ -247,6 +275,7 @@ static void test_water_conversion(void)
 
 int main(void)
 {
+    test_rom_header();
     test_coordinate_conversion();
     test_input_mapping();
     test_surface_mapping();

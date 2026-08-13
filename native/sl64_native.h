@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-#define SL64_NATIVE_API_VERSION 1u
+#define SL64_NATIVE_API_VERSION 2u
 #define SL64_COOPDX_VERSION "v1.5.1"
 #define SL64_COOPDX_COMMIT "8cd6e5977d9f920d51ca71f2c61801d019ed79c6"
 #define SL64_ROM_ENVIRONMENT_VARIABLE "SL64_ROM_PATH"
@@ -134,6 +134,7 @@ bool sl64_get_status(Sl64NativeStatus *outStatus);
 bool sl64_set_enabled(bool enabled);
 bool sl64_set_age(uint8_t age);
 bool sl64_set_item(uint8_t item);
+bool sl64_set_magic(uint8_t level, int16_t amount);
 bool sl64_damage_link(int16_t amount);
 bool sl64_set_equipment(uint8_t sword, uint8_t shield,
                         uint8_t tunic, uint8_t boots);

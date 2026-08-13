@@ -237,6 +237,15 @@ bool sl64_render_capture(const OoTEngineFrame *frame)
     }
     gSl64.render.triangleCount = triangles;
     gSl64.render.batchCount = batches;
+    {
+        float alpha = sl64_clampf(frame->interpolationAlpha, 0.0f, 1.0f);
+        size_t axis;
+        for (axis = 0u; axis < 3u; ++axis) {
+            float offset = frame->link.velocity[axis] * alpha;
+            gSl64.render.presentationOffset[axis] =
+                isfinite(offset) ? offset : 0.0f;
+        }
+    }
     gSl64.status.triangles = triangles;
     gSl64.status.batches = batches;
     if (frame->linkGeometryTruncated != 0u) {
@@ -259,6 +268,55 @@ static uint8_t sl64_color(float value)
     return (uint8_t)lrintf(sl64_clampf(value, 0.0f, 1.0f) * 255.0f);
 }
 
+static float sl64_alpha_source(uint32_t source, float combined,
+                               float texture, float shade,
+                               const struct OoTGeometryBatch *batch)
+{
+    switch (source & 7u) {
+    case 0u: return combined;
+    case 1u:
+    case 2u: return texture;
+    case 3u: return batch->primitiveColor[3];
+    case 4u: return shade;
+    case 5u: return batch->environmentColor[3];
+    case 6u: return 1.0f;
+    default: return 0.0f;
+    }
+}
+
+static float sl64_alpha_cycle(uint32_t a, uint32_t b, uint32_t c,
+                              uint32_t d, float combined, float texture,
+                              float shade,
+                              const struct OoTGeometryBatch *batch)
+{
+    float av = sl64_alpha_source(a, combined, texture, shade, batch);
+    float bv = sl64_alpha_source(b, combined, texture, shade, batch);
+    float cv = sl64_alpha_source(c, combined, texture, shade, batch);
+    float dv = sl64_alpha_source(d, combined, texture, shade, batch);
+    return sl64_clampf((av - bv) * cv + dv, 0.0f, 1.0f);
+}
+
+static float sl64_material_alpha(const struct OoTGeometryBatch *batch,
+                                 float vertexAlpha)
+{
+    uint32_t high = batch->combineModeHi;
+    uint32_t low = batch->combineModeLo;
+    float first;
+
+    if (high == 0u && low == 0u) {
+        return vertexAlpha;
+    }
+    /* Evaluate the captured two-cycle alpha expression with texture alpha
+     * factored out as 1. The host combiner supplies the real texel alpha;
+     * this preserves primitive/environment fades and vertex shade alpha. */
+    first = sl64_alpha_cycle((high >> 12) & 7u, (low >> 12) & 7u,
+                             (high >> 9) & 7u, (low >> 9) & 7u,
+                             0.0f, 1.0f, vertexAlpha, batch);
+    return sl64_alpha_cycle((low >> 21) & 7u, (low >> 3) & 7u,
+                            (low >> 18) & 7u, low & 7u,
+                            first, 1.0f, vertexAlpha, batch);
+}
+
 static int16_t sl64_texcoord(float value, uint16_t extent)
 {
     float converted = value * (float)extent * 32.0f;
@@ -269,13 +327,15 @@ static int16_t sl64_texcoord(float value, uint16_t extent)
     return (int16_t)lrintf(converted);
 }
 
-static int16_t sl64_vertex_coordinate(float value)
+static float sl64_vertex_coordinate(float value)
 {
     if (!isfinite(value)) {
-        return 0;
+        return 0.0f;
     }
-    value = sl64_clampf(value, -32768.0f, 32767.0f);
-    return (int16_t)lrintf(value);
+    /* CoopDX's desktop Vtx uses float positions. Narrowing world-space Link
+     * geometry to the original N64 s16 type destroys sub-unit motion and can
+     * clamp valid host coordinates into screen-spanning triangles. */
+    return value;
 }
 
 static const Sl64TextureCache *sl64_batch_texture(
@@ -320,20 +380,33 @@ static uint32_t sl64_pass_triangles(uint8_t pass)
 
 static void sl64_fill_vertex(Vtx *destination, uint32_t triangle,
                              uint32_t outputVertex,
-                             const Sl64TextureCache *texture)
+                             const Sl64TextureCache *texture,
+                             const struct OoTGeometryBatch *batch)
 {
     static const uint8_t reflectedOrder[3] = { 0u, 2u, 1u };
     uint32_t sourceVertex = triangle * 3u + reflectedOrder[outputVertex];
     const float *position = &gSl64.render.position[sourceVertex * 3u];
     const float *color = &gSl64.render.color[sourceVertex * 3u];
     const float *uv = &gSl64.render.uv[sourceVertex * 2u];
+    float offsetX = 0.0f;
+    float offsetY = 0.0f;
+    float offsetZ = 0.0f;
+
+    if (batch->sourceKind == OOT_GEOMETRY_SOURCE_LINK) {
+        offsetX = gSl64.render.presentationOffset[0];
+        offsetY = gSl64.render.presentationOffset[1];
+        offsetZ = gSl64.render.presentationOffset[2];
+    }
 
     destination->v.ob[0] = sl64_vertex_coordinate(
-        -position[0] * gSl64.coordinateMap.hostUnitsPerOotUnit);
+        -(position[0] + offsetX) *
+            gSl64.coordinateMap.hostUnitsPerOotUnit);
     destination->v.ob[1] = sl64_vertex_coordinate(
-        position[1] * gSl64.coordinateMap.hostUnitsPerOotUnit);
+        (position[1] + offsetY) *
+            gSl64.coordinateMap.hostUnitsPerOotUnit);
     destination->v.ob[2] = sl64_vertex_coordinate(
-        position[2] * gSl64.coordinateMap.hostUnitsPerOotUnit);
+        (position[2] + offsetZ) *
+            gSl64.coordinateMap.hostUnitsPerOotUnit);
     destination->v.flag = 0u;
     destination->v.tc[0] = texture != NULL ?
                             sl64_texcoord(uv[0], texture->width) : 0;
@@ -342,7 +415,8 @@ static void sl64_fill_vertex(Vtx *destination, uint32_t triangle,
     destination->v.cn[0] = sl64_color(color[0]);
     destination->v.cn[1] = sl64_color(color[1]);
     destination->v.cn[2] = sl64_color(color[2]);
-    destination->v.cn[3] = sl64_color(gSl64.render.alpha[sourceVertex]);
+    destination->v.cn[3] = sl64_color(sl64_material_alpha(
+        batch, gSl64.render.alpha[sourceVertex]));
 }
 
 static Gfx *sl64_render_pass(uint8_t pass, struct GraphNode *node)
@@ -357,6 +431,9 @@ static Gfx *sl64_render_pass(uint8_t pass, struct GraphNode *node)
     uint32_t vertexCursor = 0u;
     uint32_t batchIndex;
 
+    if (pass == OOT_GEOMETRY_PASS_OPAQUE) {
+        gSl64.status.textureFallbacks = 0u;
+    }
     if (passTriangles == 0u || node == NULL) {
         return NULL;
     }
@@ -405,8 +482,15 @@ static Gfx *sl64_render_pass(uint8_t pass, struct GraphNode *node)
         }
 
         gDPPipeSync(gfx++);
-        gSPClearGeometryMode(gfx++, G_LIGHTING | G_CULL_BOTH);
+        gSPClearGeometryMode(
+            gfx++, G_LIGHTING | G_CULL_BOTH | G_FOG | G_TEXTURE_GEN |
+                       G_TEXTURE_GEN_LINEAR | G_LOD | G_PACKED_NORMALS_EXT |
+                       G_LIGHT_MAP_EXT | G_LIGHTING_ENGINE_EXT |
+                       G_CULL_INVERT_EXT | G_FRESNEL_COLOR_EXT |
+                       G_FRESNEL_ALPHA_EXT);
         gSPSetGeometryMode(gfx++, G_SHADE | G_SHADING_SMOOTH | G_ZBUFFER);
+        gDPSetCycleType(gfx++, G_CYC_1CYCLE);
+        gDPSetAlphaCompare(gfx++, G_AC_NONE);
         if ((batch->triangleFlags & OOT_TRI_CULL_FRONT) != 0u) {
             gSPSetGeometryMode(gfx++, G_CULL_FRONT);
         } else if ((batch->triangleFlags & OOT_TRI_CULL_BACK) != 0u) {
@@ -422,25 +506,16 @@ static Gfx *sl64_render_pass(uint8_t pass, struct GraphNode *node)
             gDPSetRenderMode(gfx++, G_RM_AA_ZB_OPA_SURF,
                             G_RM_AA_ZB_OPA_SURF2);
         }
-        if (batch->combineModeHi != 0u) {
-            gfx->words.w0 = batch->combineModeHi;
-            gfx->words.w1 = batch->combineModeLo;
-            gfx++;
-        } else if (texture != NULL) {
+        /* liboot has already baked lighting and limb material tints into the
+         * exported vertex colors. Replaying OoT's raw combiner would apply
+         * those colors twice and can select N64-only inputs that CoopDX does
+         * not provide. Use the host's stable texture/shade combinations. */
+        if (texture != NULL) {
             gDPSetCombineMode(gfx++, G_CC_MODULATERGBA,
                              G_CC_MODULATERGBA);
         } else {
             gDPSetCombineMode(gfx++, G_CC_SHADE, G_CC_SHADE);
         }
-        gDPSetPrimColor(gfx++, 0, 0,
-                        sl64_color(batch->primitiveColor[0]),
-                        sl64_color(batch->primitiveColor[1]),
-                        sl64_color(batch->primitiveColor[2]),
-                        sl64_color(batch->primitiveColor[3]));
-        gDPSetEnvColor(gfx++, sl64_color(batch->environmentColor[0]),
-                       sl64_color(batch->environmentColor[1]),
-                       sl64_color(batch->environmentColor[2]),
-                       sl64_color(batch->environmentColor[3]));
         if (texture != NULL) {
             gSPTexture(gfx++, 0xffff, 0xffff, 0, G_TX_RENDERTILE, G_ON);
             gDPLoadTextureBlock(gfx++, texture->rgba, G_IM_FMT_RGBA,
@@ -459,7 +534,7 @@ static Gfx *sl64_render_pass(uint8_t pass, struct GraphNode *node)
                 sl64_fill_vertex(&vertices[vertexCursor + triangle * 3u +
                                              vertex],
                                  batch->firstTriangle + triangle, vertex,
-                                 texture);
+                                 texture, batch);
             }
         }
         for (triangleOffset = 0u; triangleOffset < triangleCount;
