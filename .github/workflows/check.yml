@@ -13,10 +13,10 @@ jobs:
   source:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check release inventory
         run: make scan
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: Cycl0o0/liboot
           ref: 8a98fcd124465b9d59623956a0d08c3ec7c30fcf
