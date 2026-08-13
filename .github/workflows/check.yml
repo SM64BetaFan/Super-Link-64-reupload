@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check release inventory
+        run: make scan
       - uses: actions/checkout@v4
         with:
           repository: Cycl0o0/liboot
@@ -21,5 +23,5 @@ jobs:
           path: liboot
       - name: Install Lua syntax checker
         run: sudo apt-get update && sudo apt-get install -y lua5.4
-      - name: Check source tree
-        run: make check LIBOOT_SOURCE="$GITHUB_WORKSPACE/liboot"
+      - name: Run source tests
+        run: make test LIBOOT_SOURCE="$GITHUB_WORKSPACE/liboot"
