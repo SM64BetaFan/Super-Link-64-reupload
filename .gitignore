@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+.DS_Store
+build/
+stage/
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.dSYM/
+
+# Game data must never enter this tree.
+*.z64
+*.n64
+*.v64
+*.rom
+*.wad
+*.sav
+*.sra
+*.eep
+*.fla
+
+__pycache__/
+*.pyc

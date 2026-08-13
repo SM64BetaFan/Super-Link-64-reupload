@@ -1,0 +1,71 @@
+schema_version: 1
+project: "Super Link 64"
+reviewed_on: "2026-08-13"
+distribution_status: "original-source-scaffold"
+combined_release: "blocked"
+
+components:
+  - name: "SM64CoopDX"
+    relationship: "local-test-host"
+    upstream: "https://github.com/coop-deluxe/sm64coopdx"
+    reviewed_revision: "8cd6e5977d9f920d51ca71f2c61801d019ed79c6"
+    selected_local_test_pin: "v1.5.1"
+    declared_license: "NOASSERTION"
+    bundled: false
+    linked_in_local_test: true
+    distributed: false
+    local_test_integration: true
+    redistribution_decision: "blocked-pending-written-permission-or-compatible-license"
+    required_action:
+      - "Obtain permission to copy, modify, patch, link, and distribute source and object forms."
+      - "Preserve the complete upstream credits and every applicable third-party notice."
+      - "Record the exact approved revision and license terms before integration."
+    notes:
+      - "The reviewed repository had no repository-wide LICENSE file."
+      - "Licensing of an earlier base project does not automatically license later SM64CoopDX contributions."
+
+  - name: "liboot"
+    relationship: "local-test-native-dependency"
+    upstream: "https://github.com/Cycl0o0/liboot"
+    reviewed_revision: "8a98fcd124465b9d59623956a0d08c3ec7c30fcf"
+    reviewed_version: "0.8.0"
+    selected_local_test_pin: "8a98fcd124465b9d59623956a0d08c3ec7c30fcf"
+    declared_license: "AGPL-3.0-or-later for liboot-authored portions only"
+    bundled: false
+    linked_in_local_test: true
+    distributed: false
+    local_test_integration: true
+    redistribution_decision: "blocked-pending-decomp-provenance-clearance"
+    required_action:
+      - "Resolve redistribution rights for every vendored decompilation file included in the build."
+      - "Preserve liboot's LICENSE, NOTICE.md, and complete source for the exact binary."
+      - "Review the combined-work licensing of the host, bridge, and liboot before release."
+    nested_components:
+      - name: "zeldaret/oot selected decompilation material"
+        upstream: "https://github.com/zeldaret/oot"
+        revision: "269d03016cd0e3d7a0b8925e02b97a319c1d0e8d"
+        declared_license: "NOASSERTION"
+        redistribution_decision: "blocked-pending-clearance"
+      - name: "LibUltraShip audio mixer arithmetic"
+        copyright: "Copyright (c) 2022 Kenix3"
+        declared_license: "MIT"
+        required_notice: "LICENSES/LibUltraShip-MIT.txt from the exact liboot source release"
+
+  - name: "Nintendo game data"
+    relationship: "user-supplied-runtime-input-only"
+    declared_license: "proprietary"
+    bundled: false
+    linked: false
+    redistribution_decision: "excluded"
+    prohibited_release_content:
+      - "ROM images or fragments"
+      - "extracted or converted models, textures, animations, audio, and scene data"
+      - "asset-bearing patches, caches, traces, captures, geometry dumps, and PCM output"
+    permitted_repository_metadata:
+      - "non-reversible ROM identity hashes used only for local compatibility validation"
+
+review_requirements:
+  - "Update this inventory whenever a dependency, revision, generated file, or asset changes."
+  - "Treat NOASSERTION as a release blocker, not as permission."
+  - "Do not infer redistribution rights from public source availability."
+  - "Archive the written grants and license texts relied upon by a release."

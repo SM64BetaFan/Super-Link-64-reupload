@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Super Link 64 contributors
+
+[sm64coopdx]
+release = "v1.5.1"
+commit = "8cd6e5977d9f920d51ca71f2c61801d019ed79c6"
+repository = "https://github.com/coop-deluxe/sm64coopdx"
+
+[liboot]
+version = "0.8.0"
+engine_api = 1
+commit = "8a98fcd124465b9d59623956a0d08c3ec7c30fcf"
+repository = "https://github.com/Cycl0o0/liboot"

@@ -1,0 +1,6 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
+--
+-- This source-only frontend contains no ROM or extracted game asset.
+-- Super Link 64 is independent and is not affiliated with Nintendo,
+-- SM64CoopDX, zeldaret, or liboot. Combined releases remain blocked; consult
+-- NOTICE.md and RELEASE_BLOCKERS.md in the matching source tree.

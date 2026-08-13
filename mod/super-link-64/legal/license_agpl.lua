@@ -1,0 +1,6 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
+--
+-- Original Super Link 64 code is offered under GNU AGPL version 3 or later.
+-- Source and full license text: use the exact source tree paired with the local
+-- build. This notice does not relicense SM64CoopDX, liboot's
+-- third-party decompilation material, or Nintendo game data.
