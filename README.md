@@ -1,3 +1,6 @@
+# THIS GIT ISN'T MINE
+This project was originally made by Cycl0o0 and recently got deleted, so I reuploaded it.
+
 # Super Link 64
 
 Super Link 64 runs liboot's Link simulation in an SM64CoopDX level. Link is
