@@ -1,5 +1,8 @@
-# THIS GIT ISN'T MINE
-This project was originally made by Cycl0o0 and recently got deleted, so I reuploaded it.
+# THIS REPOSITORY IS NOT THE ORIGINAL PROJECT
+
+This repository is a reupload of Super Link 64, originally created by Cycl0o0.
+
+The original repository was recently deleted, so this copy was uploaded to preserve the project and its source code. I am not the original author of Super Link 64.
 
 # Super Link 64
 
