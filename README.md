@@ -2,7 +2,9 @@
 
 This repository is a reupload of Super Link 64, originally created by Cycl0o0.
 
-The original repository was recently deleted, so this copy was uploaded to preserve the project and its source code. I am not the original author of Super Link 64.
+The original repository was recently deleted*, so this copy was uploaded to preserve the project and its source code. I am not the original author of Super Link 64.
+
+*its not deleted it's just private for now cause it doesn't work
 
 # Super Link 64
 
